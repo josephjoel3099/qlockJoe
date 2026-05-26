@@ -171,34 +171,28 @@ public:
   }
 
   void fade(LedMatrix &leds) {
+    if (!fading) return;
 
-    if (!fading)
-      return;
+    for (int step = 0; step <= FADE_STEPS; step++) {
+        uint8_t v = map(step, 0, FADE_STEPS, 255, 0);
 
-    for (int i = 0; i < 28; i++) {
+        for (int i = 0; i < 28; i++) {
+            if (fadeList[i] != INVALID_LED)
+                leds.setWord(fadeList[i], v);
+        }
 
-      if (fadeList[i] != INVALID_LED) {
-
-        uint8_t v = map(fadeStep, 0, FADE_STEPS, 255, 0);
-        leds.setWord(fadeList[i], v);
-      }
+        leds.show();
+        delay(FADE_DELAY);
     }
 
+    // Ensure fully off at end
+    for (int i = 0; i < 28; i++) {
+        if (fadeList[i] != INVALID_LED)
+            leds.off(fadeList[i]);
+    }
     leds.show();
 
-    fadeStep++;
-
-    if (fadeStep > FADE_STEPS) {
-
-      for (int i = 0; i < 28; i++) {
-        if (fadeList[i] != INVALID_LED)
-          leds.off(fadeList[i]);
-      }
-
-      fading = false;
-    }
-
-    delay(FADE_DELAY);
+    fading = false;
   }
 };
 
@@ -267,18 +261,17 @@ void setup() {
 }
 
 void loop() {
+    static int lastMinute = -1;
 
-  static int lastMinute = -1;
+    timeClient.update();
 
-  timeClient.update();
+    if (timeClient.getMinutes() != lastMinute) {
+        lastMinute = timeClient.getMinutes();
 
-  if (timeClient.getMinutes() != lastMinute) {
+        clockLogic.update(timeClient);
+        clockLogic.render(leds);
+        clockLogic.fade(leds);
+    }
 
-    lastMinute = timeClient.getMinutes();
-
-    clockLogic.update(timeClient);
-    clockLogic.render(leds);
-  }
-
-  clockLogic.fade(leds);
+    delay(5000); // check every 5 seconds — plenty for a word clock
 }
